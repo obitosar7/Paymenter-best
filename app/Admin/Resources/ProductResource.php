@@ -322,7 +322,8 @@ class ProductResource extends Resource
                 return $query
                     ->orderBy('sort', 'asc');
             })
-            ->defaultGroup('category.name');
+            ->defaultGroup('category.name')
+            ->reorderable('sort');
     }
 
     public static function getPages(): array
