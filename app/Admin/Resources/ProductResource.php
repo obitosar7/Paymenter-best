@@ -228,7 +228,7 @@ class ProductResource extends Resource
                     ->required()
                     ->label('Time Interval')
                     ->default(1)
-                    ->hidden(fn (Get $get) => $get('type') !== 'recurring'),
+                    ->hidden(fn (Get $get) => $get('type') === 'one-time'),
 
                 Select::make('billing_unit')
                     ->options([
@@ -240,7 +240,7 @@ class ProductResource extends Resource
                     ->label('Billing period')
                     ->required()
                     ->default('month')
-                    ->hidden(fn (Get $get) => $get('type') !== 'recurring'),
+                    ->hidden(fn (Get $get) => $get('type') === 'one-time'),
                 Repeater::make('pricing')
                     ->hidden(fn (Get $get) => $get('type') === 'free')
                     ->columns(3)
