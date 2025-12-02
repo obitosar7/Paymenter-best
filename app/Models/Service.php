@@ -110,9 +110,22 @@ class Service extends Model implements Auditable
      */
     public function calculateNextDueDate()
     {
-        if ($this->plan->type == 'one-time' || $this->plan->type == 'free') {
+        if ($this->plan->type == 'one-time') {
             return null;
         }
+
+        if ($this->plan->type == 'free') {
+            if (!$this->plan->billing_period || !$this->plan->billing_unit) {
+                return null;
+            }
+
+            if ($this->expires_at) {
+                return $this->expires_at;
+            }
+
+            return now()->{'add' . ucfirst($this->plan->billing_unit) . 's'}($this->plan->billing_period);
+        }
+
         if (!$this->expires_at || $this->status != self::STATUS_ACTIVE) {
             // Make sure that if a service is being renewed after suspension or pending, we use the current date as base
             $date = now();
