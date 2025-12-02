@@ -48,6 +48,7 @@ class CronJob extends Command
         try {
             $this->runCronJob('free_services_terminated', function ($number = 0) {
                 Service::whereHas('plan', fn ($query) => $query->where('type', 'free'))
+                    ->whereIn('status', [Service::STATUS_ACTIVE, Service::STATUS_SUSPENDED])
                     ->whereNotNull('expires_at')
                     ->where('expires_at', '<=', now())
                     ->each(function ($service) use (&$number) {
