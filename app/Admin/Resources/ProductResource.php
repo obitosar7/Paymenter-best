@@ -168,7 +168,7 @@ class ProductResource extends Resource
             ])->columns(1);
     }
 
-    public static function plan()
+    public static function plan(bool $requirePricing = true)
     {
         return Repeater::make('plan')
             ->addActionLabel('Add new plan')
@@ -250,7 +250,8 @@ class ProductResource extends Resource
                     ->relationship('prices')
                     ->columnSpanFull()
                     ->maxItems(Currency::count())
-                    ->defaultItems(1)
+                    ->defaultItems($requirePricing ? 1 : 0)
+                    ->minItems($requirePricing ? 1 : 0)
                     ->itemLabel(fn (array $state) => $state['currency_code'])
                     ->schema([
                         Select::make('currency_code')
