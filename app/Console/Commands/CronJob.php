@@ -53,25 +53,35 @@ class CronJob extends Command
                     ->whereNotNull('expires_at')
                     ->where('expires_at', '<=', now())
                     ->each(function ($service) use (&$number) {
+                        $terminated = false;
+
                         try {
                             TerminateJob::dispatchSync($service);
+
+                            $terminated = true;
                         } catch (Exception $exception) {
                             Log::error('Failed terminating expired free service', [
                                 'service_id' => $service->id,
                                 'exception' => $exception->getMessage(),
                             ]);
-
-                            $service->update(['status' => Service::STATUS_SUSPENDED]);
-
-                            return;
                         }
 
                         $service->update(['status' => Service::STATUS_CANCELLED]);
+
                         $service->invoices()->where('status', 'pending')->update(['status' => 'cancelled']);
 
                         if ($service->product->stock !== null) {
                             $service->product->increment('stock', $service->quantity);
                         }
+
+                        Log::info(
+                            $terminated
+                                ? 'Terminated expired free service'
+                                : 'Force-cancelled expired free service after failed termination',
+                            [
+                                'service_id' => $service->id,
+                            ]
+                        );
 
                         $number++;
                     });
