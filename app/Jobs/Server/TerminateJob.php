@@ -6,6 +6,7 @@ use App\Helpers\ExtensionHelper;
 use App\Helpers\NotificationHelper;
 use App\Models\Service;
 use Exception;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -35,7 +36,14 @@ class TerminateJob implements ShouldQueue
         try {
             $data = ExtensionHelper::terminateServer($this->service);
         } catch (Exception $e) {
-            if ($e->getMessage() !== 'No server assigned to this product') {
+            $message = $e->getMessage();
+
+            if (str_contains(strtolower($message), 'not found') || $message === 'No server assigned to this product') {
+                Log::warning('Termination skipped because server could not be found.', [
+                    'service_id' => $this->service->id,
+                    'exception' => $message,
+                ]);
+            } else {
                 throw $e;
             }
         }
