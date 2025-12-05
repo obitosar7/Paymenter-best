@@ -17,6 +17,7 @@ use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CronJob extends Command
 {
@@ -52,7 +53,18 @@ class CronJob extends Command
                     ->whereNotNull('expires_at')
                     ->where('expires_at', '<=', now())
                     ->each(function ($service) use (&$number) {
-                        TerminateJob::dispatchSync($service);
+                        try {
+                            TerminateJob::dispatchSync($service);
+                        } catch (Exception $exception) {
+                            Log::error('Failed terminating expired free service', [
+                                'service_id' => $service->id,
+                                'exception' => $exception->getMessage(),
+                            ]);
+
+                            $service->update(['status' => Service::STATUS_SUSPENDED]);
+
+                            return;
+                        }
 
                         $service->update(['status' => Service::STATUS_CANCELLED]);
                         $service->invoices()->where('status', 'pending')->update(['status' => 'cancelled']);
