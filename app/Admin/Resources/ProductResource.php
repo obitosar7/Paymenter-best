@@ -228,7 +228,7 @@ class ProductResource extends Resource
                     ->required()
                     ->label('Time Interval')
                     ->default(1)
-                    ->hidden(fn (Get $get) => $get('type') !== 'recurring'),
+                    ->hidden(fn (Get $get) => $get('type') === 'one-time'),
 
                 Select::make('billing_unit')
                     ->options([
@@ -240,7 +240,7 @@ class ProductResource extends Resource
                     ->label('Billing period')
                     ->required()
                     ->default('month')
-                    ->hidden(fn (Get $get) => $get('type') !== 'recurring'),
+                    ->hidden(fn (Get $get) => $get('type') === 'one-time'),
                 Repeater::make('pricing')
                     ->hidden(fn (Get $get) => $get('type') === 'free')
                     ->columns(3)
@@ -303,9 +303,11 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('name')->searchable(query: function (Builder $query, string $search): Builder {
-                    return $query->where('products.name', 'like', "%{$search}%");
-                }),
+                TextColumn::make('name')
+                    ->description(fn (Product $record) => $record->category?->name)
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where('products.name', 'like', "%{$search}%");
+                    }),
                 TextColumn::make('slug'),
                 TextColumn::make('category.name')->searchable(),
             ])
