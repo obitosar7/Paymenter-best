@@ -32,7 +32,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\RawJs;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
@@ -304,11 +303,9 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('name')
-                    ->description(fn (Product $record) => $record->category?->name)
-                    ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->where('products.name', 'like', "%{$search}%");
-                    }),
+                TextColumn::make('name')->searchable(query: function (Builder $query, string $search): Builder {
+                    return $query->where('products.name', 'like', "%{$search}%");
+                }),
                 TextColumn::make('slug'),
                 TextColumn::make('category.name')->searchable(),
             ])
@@ -317,9 +314,6 @@ class ProductResource extends Resource
                     ->relationship('category', 'name')
                     ->searchable()
                     ->preload(),
-            ])
-            ->groups([
-                Group::make('category.name')->label('Category'),
             ])
             ->recordActions([
                 EditAction::make(),
