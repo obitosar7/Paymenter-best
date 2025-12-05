@@ -17,6 +17,7 @@ use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CronJob extends Command
 {
@@ -46,9 +47,45 @@ class CronJob extends Command
         DB::beginTransaction();
 
         try {
+            $this->runCronJob('free_services_terminated', function ($number = 0) {
+                Service::whereHas('plan', fn ($query) => $query->where('type', 'free'))
+                    ->whereIn('status', [Service::STATUS_ACTIVE, Service::STATUS_SUSPENDED])
+                    ->whereNotNull('expires_at')
+                    ->where('expires_at', '<=', now())
+                    ->each(function ($service) use (&$number) {
+                        try {
+                            TerminateJob::dispatchSync($service);
+                        } catch (Exception $exception) {
+                            Log::error('Failed terminating expired free service', [
+                                'service_id' => $service->id,
+                                'exception' => $exception->getMessage(),
+                            ]);
+
+                            $service->update(['status' => Service::STATUS_SUSPENDED]);
+
+                            return;
+                        }
+
+                        $service->update(['status' => Service::STATUS_CANCELLED]);
+                        $service->invoices()->where('status', 'pending')->update(['status' => 'cancelled']);
+
+                        if ($service->product->stock !== null) {
+                            $service->product->increment('stock', $service->quantity);
+                        }
+
+                        $number++;
+                    });
+
+                return $number;
+            });
+
             // Send invoices if due date is x days away
             $this->runCronJob('invoices_created', function ($number = 0) {
                 Service::where('status', 'active')->where('expires_at', '<', now()->addDays((int) config('settings.cronjob_invoice', 7)))->get()->each(function ($service) use (&$number) {
+                    if ($service->plan->type === 'free') {
+                        return;
+                    }
+
                     // Does the service have already a pending invoice?
                     if ($service->invoices()->where('status', 'pending')->exists() || $service->cancellation()->exists()) {
                         return;
