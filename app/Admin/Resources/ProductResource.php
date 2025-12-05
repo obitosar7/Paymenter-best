@@ -225,11 +225,24 @@ class ProductResource extends Resource
                     ->placeholder('Select the type of the price')
                     ->default('free'),
 
+                Checkbox::make('use_billing_schedule')
+                    ->label('Enable billing interval')
+                    ->helperText('Check to require a time interval and billing period for this plan.')
+                    ->default(false)
+                    ->live()
+                    ->dehydrated(false)
+                    ->afterStateHydrated(function (Set $set, Get $get) {
+                        $set('use_billing_schedule', $get('billing_period') !== null || $get('billing_unit') !== null);
+                    })
+                    ->visible(fn (Get $get) => $get('type') !== 'one-time'),
+
                 TextInput::make('billing_period')
-                    ->required()
                     ->label('Time Interval')
                     ->default(1)
-                    ->hidden(fn (Get $get) => $get('type') === 'one-time'),
+                    ->required(fn (Get $get) => $get('use_billing_schedule') && $get('type') !== 'one-time')
+                    ->hidden(fn (Get $get) => $get('type') === 'one-time' || !$get('use_billing_schedule'))
+                    ->dehydrated(fn (Get $get) => $get('use_billing_schedule'))
+                    ->dehydrateStateUsing(fn ($state, Get $get) => $get('use_billing_schedule') ? $state : null),
 
                 Select::make('billing_unit')
                     ->options([
@@ -239,9 +252,11 @@ class ProductResource extends Resource
                         'year' => 'Year',
                     ])
                     ->label('Billing period')
-                    ->required()
                     ->default('month')
-                    ->hidden(fn (Get $get) => $get('type') === 'one-time'),
+                    ->required(fn (Get $get) => $get('use_billing_schedule') && $get('type') !== 'one-time')
+                    ->hidden(fn (Get $get) => $get('type') === 'one-time' || !$get('use_billing_schedule'))
+                    ->dehydrated(fn (Get $get) => $get('use_billing_schedule'))
+                    ->dehydrateStateUsing(fn ($state, Get $get) => $get('use_billing_schedule') ? $state : null),
                 Repeater::make('pricing')
                     ->hidden(fn (Get $get) => $get('type') === 'free')
                     ->columns(3)
